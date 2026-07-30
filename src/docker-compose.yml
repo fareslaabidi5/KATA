@@ -1,0 +1,22 @@
+services:
+
+  ibm-mq:
+    image: icr.io/ibm-messaging/mq:latest
+    container_name: ibm-mq
+    ports:
+      - "1414:1414"
+    environment:
+      LICENSE: accept
+      MQ_QMGR_NAME: QM1
+    networks:
+      - mq-network
+
+  app:
+    build: .
+    depends_on:
+      - ibm-mq
+    networks:
+      - mq-network
+
+networks:
+  mq-network:

@@ -1,0 +1,487 @@
+<div class="app">
+
+  <!-- ================= HEADER ================= -->
+
+  <header class="header">
+
+    <div class="logo-container">
+      <img
+        src="astrelya.png"
+        alt="Company logo"
+        class="company-logo"
+      />
+    </div>
+
+    <div class="title">
+      <h1>KATA IBM MQ</h1>
+      <span>Messaging Dashboard</span>
+    </div>
+
+    <button
+      class="refresh-button"
+      (click)="refreshAll()"
+      [disabled]="loading">
+
+      <span class="refresh-icon">↻</span>
+
+      {{ loading ? 'Refreshing...' : 'Refresh' }}
+
+    </button>
+
+  </header>
+
+
+  <!-- ================= CONTENT ================= -->
+
+  <main class="container">
+
+    <!-- ALERTS -->
+
+    @if (successMessage) {
+    <div class="alert success">
+      <span class="alert-icon">✓</span>
+      <span>{{ successMessage }}</span>
+      </div>
+    }
+
+    @if (errorMessage) {
+    <div class="alert error">
+      <span class="alert-icon">!</span>
+      <span>{{ errorMessage }}</span>
+      </div>
+    }
+
+
+    <!-- ================= OVERVIEW ================= -->
+
+    <section class="section">
+
+      <div class="section-title">
+        <div>
+          <h2>Overview</h2>
+          <p>Current IBM MQ queue and notification status.</p>
+        </div>
+      </div>
+
+
+      <div class="stats-grid">
+
+        <!-- QUEUE -->
+
+        <div class="stat-card">
+
+          <div class="stat-top">
+            <span class="stat-label">Queue</span>
+
+            <span class="status-dot"></span>
+          </div>
+
+          <div class="stat-value queue-name">
+            {{ queueName || '-' }}
+          </div>
+
+          <div class="stat-description">
+            Active IBM MQ queue
+          </div>
+
+        </div>
+
+
+        <!-- PENDING -->
+
+        <div class="stat-card">
+
+          <div class="stat-top">
+            <span class="stat-label">Pending Messages</span>
+
+            <span class="stat-icon">
+              {{ pendingMessages }}
+            </span>
+          </div>
+
+          <div class="stat-value">
+            {{ pendingMessages }}
+          </div>
+
+          <div class="stat-description">
+            Messages currently waiting
+          </div>
+
+        </div>
+
+
+        <!-- SAVED -->
+
+        <div class="stat-card">
+
+          <div class="stat-top">
+            <span class="stat-label">Saved Notifications</span>
+
+            <span class="stat-icon">
+              {{ totalNotificationsSaved }}
+            </span>
+          </div>
+
+          <div class="stat-value">
+            {{ totalNotificationsSaved }}
+          </div>
+
+          <div class="stat-description">
+            Persisted in PostgreSQL
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= SEND MESSAGE ================= -->
+
+    <section class="card">
+
+      <div class="card-header">
+
+        <div>
+          <h2>Send Message</h2>
+          <p>
+            Send a text message directly to the IBM MQ queue.
+          </p>
+        </div>
+
+        <div class="queue-badge">
+          {{ queueName || 'NOTIFICATION.Q' }}
+        </div>
+
+      </div>
+
+
+      <div class="send-area">
+
+        <label for="message">
+          Message
+        </label>
+
+        <textarea
+          id="message"
+          [(ngModel)]="messageText"
+          placeholder="Type your message here..."
+          rows="5">
+        </textarea>
+
+
+        <div class="send-footer">
+
+          <span class="character-counter">
+            {{ messageText.length }} characters
+          </span>
+
+          <button
+            class="primary-button"
+            (click)="sendMessage()"
+            [disabled]="!messageText.trim() || sending">
+
+            @if (sending) {
+            Sending...
+            } @else {
+            Send Message
+            }
+
+          </button>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+    <!-- ================= FIND MESSAGE ================= -->
+
+    <section class="card">
+
+      <div class="card-header">
+
+        <div>
+          <h2>Find Notification</h2>
+          <p>
+            Retrieve a persisted notification by its database ID.
+          </p>
+        </div>
+
+      </div>
+
+
+      <div class="find-area">
+
+        <div class="input-wrapper">
+
+          <label for="messageId">
+            Notification ID
+          </label>
+
+          <input
+            id="messageId"
+            type="number"
+            [(ngModel)]="messageId"
+            placeholder="Example: 123"
+            min="1">
+
+        </div>
+
+
+        <button
+          class="secondary-button find-button"
+          (click)="findMessage()"
+          [disabled]="!messageId">
+
+          Search
+
+        </button>
+
+      </div>
+
+
+      @if (selectedMessage) {
+
+      <div class="result-box">
+
+        <div class="result-header">
+
+          <span>
+            Notification found
+          </span>
+
+          <button
+            class="close-result"
+            (click)="selectedMessage = null">
+
+            ×
+
+          </button>
+
+        </div>
+
+        <pre>{{ formatNotification(selectedMessage) }}</pre>
+
+        </div>
+
+      }
+
+    </section>
+
+
+    <!-- ================= QUEUE PREVIEW ================= -->
+
+    <section class="card">
+
+      <div class="card-header">
+
+        <div>
+          <h2>Queue Preview</h2>
+          <p>
+            Messages currently waiting in the IBM MQ queue.
+            Preview does not consume messages.
+          </p>
+        </div>
+
+
+        <button
+          class="secondary-button"
+          (click)="loadQueuePreview()">
+
+          ↻ Refresh
+
+        </button>
+
+      </div>
+
+
+      @if (queuePreview.length === 0) {
+
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          ✓
+        </div>
+
+        <h3>Queue is empty</h3>
+
+        <p>
+          There are currently no pending messages.
+        </p>
+
+      </div>
+
+      } @else {
+
+      <div class="table-container">
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th style="width: 35%">Correlation ID</th>
+              <th>Message</th>
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            @for (
+              message of queuePreview;
+              track message.correlationId
+            ) {
+
+      <tr>
+
+        <td>
+
+                    <span class="correlation-id">
+                      {{ message.correlationId || '-' }}
+                    </span>
+
+        </td>
+
+        <td>
+
+          <div class="message-content">
+            {{ message.body }}
+          </div>
+
+        </td>
+
+      </tr>
+
+      }
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+      }
+
+    </section>
+
+
+    <!-- ================= SAVED NOTIFICATIONS ================= -->
+
+    <section class="card">
+
+      <div class="card-header">
+
+        <div>
+          <h2>Saved Notifications</h2>
+          <p>
+            Notifications persisted in PostgreSQL.
+          </p>
+        </div>
+
+
+        <button
+          class="secondary-button"
+          (click)="loadMessages()">
+
+          ↻ Refresh
+
+        </button>
+
+      </div>
+
+
+      @if (messages.length === 0) {
+
+      <div class="empty-state">
+
+        <div class="empty-icon">
+          —
+        </div>
+
+        <h3>No notifications found</h3>
+
+        <p>
+          There are currently no notifications stored in the database.
+        </p>
+
+      </div>
+
+      } @else {
+
+      <div class="table-container">
+
+        <table>
+
+          <thead>
+
+            <tr>
+              <th style="width: 90px">ID</th>
+              <th>Notification</th>
+            </tr>
+
+          </thead>
+
+
+          <tbody>
+
+            @for (
+              message of messages;
+              track message.id
+            ) {
+
+      <tr>
+
+        <td>
+                    <span class="id-badge">
+                      {{ message.id || '-' }}
+                    </span>
+        </td>
+
+
+        <td>
+
+          <div class="notification-preview">
+
+            <pre>{{ formatNotification(message) }}</pre>
+
+          </div>
+
+        </td>
+
+      </tr>
+
+      }
+
+      </tbody>
+
+    </table>
+
+  </div>
+
+      }
+
+    </section>
+
+  </main>
+
+
+  <!-- ================= FOOTER ================= -->
+
+  <footer class="footer">
+
+    <span>
+      KATA IBM MQ
+    </span>
+
+    <span>
+      Messaging Dashboard
+    </span>
+
+  </footer>
+
+</div>
